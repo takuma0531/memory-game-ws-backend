@@ -1,123 +1,56 @@
 const http = require("http");
 const express = require("express");
 const socketIO = require("socket.io");
-const gameInfo = require("./gameInfo");
-const { checkMatching } = require('./utilities/gameLogic');
-const { SetPlayersStatus, setCards } = require('./utilities/settingRoom');
+const { users, joinUser, createRooms, leaveUsersInRoom, setPlayersInfo } = require('./utilities/users');
 const app = express();
 const server = http.createServer(app);
 const io = socketIO(server);
 
-// Variables for room
-const rooms = []; // [{roomId: n, playersStatus: {}, allCards: [] }]
-
-// Variables for game play
-const playersStatus = [];
-let allCards = null;
-let firstCard = secondCard = {
-  index: null,
-  card: null,
-  isFlipped: false
-};
-let matchedCardIndexList = [];
-let isInitialized = false;
-
 io.on("connection", (socket) => {
-  // host setting
-  socket.on("setGame", ({ nickname, nPlayer, nCard }) => {
-    socket.join(socket.id);
-    rooms.push({
-      roomId: socket.id,
-      playersStatus: SetPlayersStatus(nPlayer, nickname),
-      allCards: setCards(nCard)
-    });
+  socket.on('joinRoom', ({ nickname, id, isHost, maxNumPlayers }) => {
+    let roomId;
+    const userId = socket.id;
+    let maximumPlayers;
+
+    if (!id) {
+      // host
+      roomId = socket.id;
+      maximumPlayers = maxNumPlayers;      
+    } else {
+      // join
+      roomId = id;
+      maximumPlayers = null;
+    }
+
+    socket.join(roomId);
+    joinUser(userId, nickname, isHost, roomId, maximumPlayers);
+
+    const participants = users.filter((user) => user.roomId === roomId); // participants = [player1, player2, ...];
+    io.sockets.to(roomId).emit('joined', participants);
   });
 
-  // when loading RoomSelectionPage
+  // pass hosts data when loading room selection page
   socket.on('loadRooms', () => {
-    socket.emit('renderRooms', rooms);
+    const rooms = createRooms();
+    socket.emit('loadedRooms', rooms);
   });
 
-  // set joining person's nickname
-  socket.on('join', ({ roomId, nickname }) => {
+  // Socket during game
 
-    const room = rooms.find((room) => room.roomId === roomId);
-    let bool;
-
-    try {
-      // new player joins in case that the room has a vacant position
-      bool = room.playersStatus.find((player) => player.name === '');      
-    } catch (e) {
-      socket.emit('noRoom', 'Room is not found');
-    }
-
-    if (bool) {
-      for (i = 1; i < room.playersStatus.length; i++) {
-        if (!room.playersStatus[i].name) {
-          room.playersStatus[i].name = nickname;
-          // TODO: socket.join?
-          socket.join(room.id);
-          return;
-        }
-      }
-    } else {
-      socket.emit('fullRoom', 'The room is full');
-    }
+  socket.on('start', ({ roomId, allCards }) => {
+    const playersStatus = setPlayersInfo(roomId);
+    
+    // emit allcards, and playerstatus
   });
 
-  socket.on('activate', () => {
-    const room = rooms.find((room) => room.roomId = socket.id); // TODO: check if socket.id works?
-    io.in(socket.id).emit("startGame", room);
+  socket.on('disband', () => {
+    console.log('disband');
+    leaveUsersInRoom(socket.id);
+    socket.broadcast.emit('disbanded', 'The group was disbanded.');
   });
 
-  socket.on('flip', (data) => {
-    if (!firstCard.isFlipped) {
-      firstCard = {
-        index: data.index,
-        card: data.card,
-        isFlipped: data.isFlipped
-      };
-    } else {
-      secondCard = {
-        index: data.index,
-        card: data.card,
-        isFlipped: data.isFlipped
-      };
-
-      matchedCardIndexList = checkMatching(firstCard, secondCard);
-      isInitialized = true;
-    }
-
-    io.sockets.emit('flipped', {
-      isFlipped: data.isFlipped,
-      firstCard: firstCard,
-      secondCard: secondCard,
-      matchedCardIndexList: matchedCardIndexList,
-    });
-
-    if (isInitialized) {
-      firstCard = secondCard = {
-        index: null,
-        card: null,
-        isFlipped: false,
-      };
-
-      isInitialized = false;
-    }
-  });
-
-  socket.on('disconnect', (msg) => {
-    console.log(msg);
-
-    firstCard = secondCard = {
-      index: null,
-      card: null,
-      isFlipped: false,
-    };
-
-    isInitialized = false;
-
-    matchedCardIndexList = [];
+  socket.on('disconnect', () => {
+    console.log('disconnected');
   });
 });
 
