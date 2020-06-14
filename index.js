@@ -35,12 +35,10 @@ io.on("connection", (socket) => {
     socket.emit('loadedRooms', rooms);
   });
 
-  // Socket during game
-
   socket.on('start', ({ roomId, allCards }) => {
     const playersStatus = setPlayersInfo(roomId);
-    
-    // emit allcards, and playerstatus
+    socket.broadcast.emit('move');
+    io.sockets.to(roomId).emit('started', { playersStatus, allCards });
   });
 
   socket.on('disband', () => {
@@ -48,6 +46,8 @@ io.on("connection", (socket) => {
     leaveUsersInRoom(socket.id);
     socket.broadcast.emit('disbanded', 'The group was disbanded.');
   });
+
+    // Socket during game
 
   socket.on('disconnect', () => {
     console.log('disconnected');
