@@ -1,14 +1,15 @@
 const http = require("http");
 const express = require("express");
 const socketIO = require("socket.io");
-const { users, joinUser, createRooms, leaveUsersInRoom, setPlayersInfo } = require('./utilities/users');
+const { users, joinUser, createRooms, leaveUsersInRoom, setPlayersInfo, leaveRoom } = require('./utilities/users');
 const app = express();
 const server = http.createServer(app);
 const io = socketIO(server);
 
+let roomId;
+
 io.on("connection", (socket) => {
   socket.on('joinRoom', ({ nickname, id, isHost, maxNumPlayers }) => {
-    let roomId;
     const userId = socket.id;
     let maximumPlayers;
 
@@ -25,8 +26,8 @@ io.on("connection", (socket) => {
     socket.join(roomId);
     joinUser(userId, nickname, isHost, roomId, maximumPlayers);
 
-    const participants = users.filter((user) => user.roomId === roomId); // participants = [player1, player2, ...];
-    io.sockets.to(roomId).emit('joined', participants);
+    const players = users.filter((user) => user.roomId === roomId); // players = [player1, player2, ...];
+    io.sockets.to(roomId).emit('joined', players);
   });
 
   // pass hosts data when loading room selection page
@@ -37,14 +38,20 @@ io.on("connection", (socket) => {
 
   socket.on('start', ({ roomId, allCards }) => {
     const playersStatus = setPlayersInfo(roomId);
-    socket.to(roomId).broadcast.emit('move');
+    socket.broadcast.to(roomId).emit('move');
     io.sockets.to(roomId).emit('started', { playersStatus, allCards });
   });
 
   socket.on('disband', () => {
     console.log('disband');
     leaveUsersInRoom(socket.id);
-    socket.to(roomId).broadcast.emit('disbanded', 'The group was disbanded.');
+    socket.broadcast.to(roomId).emit('disbanded', 'The group was disbanded.');
+  });
+
+  socket.on('leaveRoom', () => {
+    console.log(users);
+    leaveRoom(socket.id);
+    console.log(users);
   });
 
     // Socket during game

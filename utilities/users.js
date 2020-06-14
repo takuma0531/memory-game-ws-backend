@@ -47,10 +47,17 @@ function leaveUsersInRoom(roomId) {
   });
 }
 
+function leaveRoom(userId) {
+  _.remove(users, (user) => {
+    return user.userId === userId;
+  });
+}
+
 module.exports = {
   users,
   joinUser,
   createRooms,
   setPlayersInfo,
   leaveUsersInRoom,
+  leaveRoom,
 };
