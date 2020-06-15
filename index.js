@@ -62,8 +62,8 @@ io.on("connection", (socket) => {
     io.sockets.to(roomId).emit('flipped', flippedCard);
   });
 
-  socket.on('restart', () => {
-    io.sockets.to(roomId).emit('restarted');
+  socket.on('reset', () => {
+    io.sockets.to(roomId).emit('refreshed');
   });
 
   socket.on('disconnect', () => {
