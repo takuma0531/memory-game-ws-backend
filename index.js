@@ -9,6 +9,7 @@ const io = socketIO(server);
 let roomId;
 
 io.on("connection", (socket) => {
+  console.log('connected');
   socket.on('joinRoom', ({ nickname, id, isHost, maxNumPlayers }) => {
     const userId = socket.id;
     let maximumPlayers;
@@ -27,7 +28,7 @@ io.on("connection", (socket) => {
     joinUser(userId, nickname, isHost, roomId, maximumPlayers);
 
     const players = users.filter((user) => user.roomId === roomId); // players = [player1, player2, ...];
-    io.sockets.to(roomId).emit('joined', players);
+    io.sockets.to(roomId).emit('joined', { players, userId });
   });
 
   // pass hosts data when loading room selection page
@@ -43,18 +44,27 @@ io.on("connection", (socket) => {
   });
 
   socket.on('disband', () => {
-    console.log('disband');
     leaveUsersInRoom(socket.id);
     socket.broadcast.to(roomId).emit('disbanded', 'The group was disbanded.');
   });
 
   socket.on('leaveRoom', () => {
-    console.log(users);
     leaveRoom(socket.id);
-    console.log(users);
   });
 
-    // Socket during game
+  // Socket during game
+  socket.on('flip', ({ card, index, isFlipped }) => {
+    const flippedCard = {
+      index: index,
+      card: card,
+      isFlipped: isFlipped
+    };
+    io.sockets.to(roomId).emit('flipped', flippedCard);
+  });
+
+  socket.on('restart', () => {
+    io.sockets.to(roomId).emit('restarted');
+  });
 
   socket.on('disconnect', () => {
     console.log('disconnected');

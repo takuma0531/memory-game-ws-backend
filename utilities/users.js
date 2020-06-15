@@ -38,6 +38,17 @@ function setPlayersInfo(roomId) {
     playersStatus.push(playerStatus);
   });
 
+  return shufflePlayersOrder(playersStatus);
+}
+
+function shufflePlayersOrder(playersStatus) {
+  for (let i = playersStatus.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * i);
+    const temp = playersStatus[i];
+    playersStatus[i] = playersStatus[j];
+    playersStatus[j] = temp;
+  }
+
   return playersStatus;
 }
 
