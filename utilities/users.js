@@ -16,7 +16,8 @@ function createRooms() {
     const isRoomFull = (hostPlayer.maximumPlayers === participants.length) ? true : false;
     const room = {
       roomId: hostPlayer.roomId,
-      participants: participants,
+      hostName: hostPlayer.nickname,
+      participants: participants.length,
       maximumPlayers: hostPlayer.maximumPlayers,
       isRoomFull: isRoomFull,
     };
